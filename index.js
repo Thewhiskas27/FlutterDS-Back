@@ -48,7 +48,7 @@ app.post('/login', (req, res) => {
     if (err || results.length === 0) return res.status(401).json({ error: 'Identifiants invalides' });
 
     const user = results[0];
-    const match = await bcrypt.compare(password, user.password_hash); // ✅ FIXED: use bcrypt.compare
+    const match = await bcrypt.compare(password, user.password_hash);
 
     if (!match) return res.status(401).json({ error: 'Mot de passe incorrect' });
 
@@ -107,7 +107,7 @@ app.get('/available-slots', (req, res) => {
 
   const openingHour = 12;
   const closingHour = 22;
-  const slotInterval = 5; // Les minutes entre les créneaux disponibles
+  const slotInterval = 10; // Les minutes entre les créneaux disponibles
   const reservationDuration = 30; // Le temps qu'une réservation prend
 
   const allSlots = [];
@@ -123,7 +123,7 @@ app.get('/available-slots', (req, res) => {
 
     const takenSlots = results.map(r => r.time.slice(0, 5)); // 'HH:MM'
 
-    // Build a set of blocked slots (each reservation blocks 30 minutes)
+    // Construction de créneaux bloqués
     const blockedSlots = new Set();
     for (const time of takenSlots) {
       const [hour, minute] = time.split(':').map(Number);
