@@ -25,8 +25,8 @@ db.connect((err) => {
   console.log('Connecté à MySQL');
 });
 
-// 🔐 Register endpoint
-app.post('/register', async (req, res) => {
+// Route API pour s'inscrire
+app.post('/sign-up', async (req, res) => {
   const { username, password } = req.body;
   const password_hash = await bcrypt.hash(password, 10);
 
@@ -57,7 +57,7 @@ app.post('/login', (req, res) => {
   });
 });
 
-// MiddleWare
+// Middleware (Pour s'authentifier)
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
@@ -70,33 +70,29 @@ const authenticate = (req, res, next) => {
   });
 };
 
-// Route réservations avec jwt
-
+// Route réservations avec Jwt (Bien sur, pour de la sécurité)
 app.post('/reservations', authenticate, (req, res) => {
   const { name, numberOfPeople, date, time } = req.body;
 
-  // Convert time to a DateTime object
-  const requestedStart = new Date(`${date}T${time}`);
-  const requestedEnd = new Date(requestedStart.getTime() + 30 * 60000); // +30 minutes
-
-  // Query to check for overlapping reservations
+  // On check qu'il n'y ait pas de réservations en cours
   const sql = `
     SELECT * FROM reservations
     WHERE date = ?
     AND (
-      (TIME(?) BETWEEN time AND ADDTIME(time, '00:30:00')) OR
-      (TIME(?) BETWEEN time AND ADDTIME(time, '00:30:00'))
+      (TIME(?) BETWEEN time AND ADDTIME(time, '00:29:00')) OR
+      (TIME(?) BETWEEN time AND ADDTIME(time, '00:29:00'))
     )
   `;
 
   db.query(sql, [date, time, time], (err, results) => {
     if (err) return res.status(500).json({ error: err.message });
 
+    // Si il y a déjà un créneau, on affiche ce message
     if (results.length > 0) {
       return res.status(409).json({ error: 'Ce créneau est déjà réservé. Veuillez choisir un autre horaire.' });
     }
 
-    // If no conflict, insert the reservation
+    // Si tout va bien, on insère
     const insertSql = 'INSERT INTO reservations (name, number_of_people, date, time) VALUES (?, ?, ?, ?)';
     db.query(insertSql, [name, numberOfPeople, date, time], (err, result) => {
       if (err) return res.status(500).json({ error: err.message });
@@ -105,15 +101,14 @@ app.post('/reservations', authenticate, (req, res) => {
   });
 });
 
-// Route des temps disponibles au cas où c'est déjà pris
-
+// Retour des créneaux disponibles
 app.get('/available-slots', (req, res) => {
   const { date } = req.query;
 
   const openingHour = 12;
   const closingHour = 22;
-  const slotInterval = 5; // minutes
-  const reservationDuration = 29; // minutes
+  const slotInterval = 5; // Les minutes entre les créneaux disponibles
+  const reservationDuration = 30; // Le temps qu'une réservation prend
 
   const allSlots = [];
   for (let hour = openingHour; hour < closingHour; hour++) {
